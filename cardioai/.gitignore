@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------------
+# Dane i artefakty (AGENTS.md, zasada 8) — poza gitem.
+# Wzorce zakotwiczone ("/"), bo katalogi src/cardioai/data/ i tests/data/
+# to kod źródłowy i muszą być w repo.
+# ---------------------------------------------------------------------------
+/data/
+/outputs/
+/models/bundles/
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Raporty generowane lokalnie; w repo zostają tylko wskazane podkatalogi.
+/reports/*
+!/reports/final/
+!/reports/docs-audit/
+
+# Wagi, modele i tablice binarne (wyjątek: api/demo/*.npz nie jest ignorowane)
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npy
+
+# ---------------------------------------------------------------------------
+# Sekrety i pliki lokalne
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+CLAUDE.local.md
+.claude/settings.local.json
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.import_linter_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------------
+# Frontend (web/)
+# ---------------------------------------------------------------------------
+node_modules/
+web/dist/
+
+# ---------------------------------------------------------------------------
+# Logi
+# ---------------------------------------------------------------------------
+*.log
+
+# ---------------------------------------------------------------------------
+# System i edytory
+# ---------------------------------------------------------------------------
+.DS_Store
+._*
+__MACOSX/
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
