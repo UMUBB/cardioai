@@ -15,19 +15,48 @@ Nie trenujemy rozproszenie między maszynami — każda prowadzi własne ekspery
 
 ## 2. Instalacja (wszystkie systemy)
 
+Wspierane cele instalacji z T001 i specyfikacji §10, dla **64-bitowego Pythona 3.11 lub 3.12**:
+
+| System / architektura | Wariant PyTorch | Wymagania |
+|---|---|---|
+| macOS ARM64 (Apple Silicon) | `cpu` — CPU i MPS z PyPI | macOS ≥ 14 dla całego `all`; M4 Pro wymaga macOS obsługującego ten model |
+| Windows x86_64 (AMD64) | `cpu` albo `cuda` | 64-bitowy Python; dla CUDA sterownik NVIDIA z §3 |
+| Linux x86_64 | `cpu` albo `cuda` | dystrybucja z glibc ≥ 2.28 i OpenMP; dla CUDA zgodny sterownik |
+| Linux ARM64 (aarch64) | `cpu` | dystrybucja z glibc ≥ 2.28 i OpenMP |
+
+`required-environments` w `pyproject.toml` pilnuje dostępności wheels podczas rozwiązywania zależności.
+Test `tests/integration/test_installation.py` sprawdza także konkretny lockfile dla docelowych platform.
+Pełny test wykonania Windows/CUDA wymaga komputera z Windows i GPU NVIDIA; kontener Linux na Macu
+pozwala sprawdzić Linux, lecz nie sterownik Windows ani CUDA. Wyniki są w `reports/final/T001-validation.md`.
+
 1. Zainstaluj `uv`:
    - Windows (PowerShell): `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"` albo `winget install --id=astral-sh.uv -e`
    - macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` albo `brew install uv`
 2. Python zarządzany przez uv: `uv python install 3.12`.
-3. Zależności (w katalogu repo):
+3. Dla extra `lgbm` lub `all` zainstaluj systemowy runtime OpenMP:
+   - macOS (Homebrew): `brew install libomp`.
+   - Debian/Ubuntu: `sudo apt-get update` i `sudo apt-get install libgomp1`.
+   - Inne dystrybucje Linux: odpowiedni pakiet runtime OpenMP z menedżera pakietów.
+   - Windows: aktualny [Microsoft Visual C++ Redistributable x64](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+   To zależność natywnego LightGBM, której `uv` nie instaluje jako pakietu systemowego
+   ([instrukcja LightGBM](https://lightgbm.readthedocs.io/en/stable/Installation-Guide.html)).
+4. Zależności (w katalogu repo):
    - Mac, CPU, CI: `uv sync --extra cpu --extra all`
    - laptopy RTX: `uv sync --extra cuda --extra all`
    Extras `cpu` i `cuda` wykluczają się (konfiguracja indeksów PyTorch w `pyproject.toml`, T001).
    Extra `all` = `api` + `xai` + `onnx` + `lgbm` + `tracking` (MLflow); obraz API instaluje się bez `tracking` (`docs/decisions.md` D-033).
-4. Sprawdzenie: `uv run python scripts/env_check.py` — wypisuje wersje, wykryte urządzenie i wykonuje test mnożenia macierzy.
-5. Hooki: `uv run pre-commit install`.
-6. Frontend (tylko C i do demo): Node.js LTS, `cd web && npm ci`.
-7. Docker Desktop (Windows: backend WSL2) — do `docker compose up`.
+5. Sprawdzenie T001: `uv run pytest -q` — testuje pakiety, stałe i logowanie, sprawdza wheels oraz
+   ładowanie zainstalowanych bibliotek, w tym OpenMP dla LightGBM. Pełne środowisko `cpu`/`cuda` + `all`
+   powinno przejść bez pominiętych testów zależności. `scripts/env_check.py` powstaje w T003.
+6. Hooki: `uv run pre-commit install`.
+7. Frontend (tylko C i do demo, T606): Node.js LTS, `cd web && npm ci`.
+8. Docker Desktop (Windows: backend WSL2) — do `docker compose up` (T701).
+
+Drugą wspieraną wersję Pythona wybierzesz przez
+`uv sync --python 3.11 --extra cpu --extra all` (na Windows z GPU: `--extra cuda` zamiast `--extra cpu`).
+Polecenie zmienia interpreter środowiska projektu; lokalizację oddzielnego środowiska można wskazać
+zmienną `UV_PROJECT_ENVIRONMENT` przed uruchomieniem `uv sync` i `uv run`.
+Do wiernego odtworzenia istniejącego lockfile dodaj `--locked`.
 
 ## 3. Specyfika urządzeń
 
@@ -36,6 +65,15 @@ Nie trenujemy rozproszenie między maszynami — każda prowadzi własne ekspery
 - Startowo ResNet1D przy 100 Hz: `batch_size: 128` z AMP; przy OOM zmniejsz batch i zwiększ `grad_accum_steps`.
 - Długie treningi: zasilacz podłączony, tryb wysokiej wydajności, wyłączone usypianie systemu.
 - `nvidia-smi` musi pokazywać sterownik zgodny z wybranym wariantem CUDA wheels (T001).
+- W T001 wybrano indeks **CUDA 12.6 (`cu126`)**. Przyjmujemy sterownik Windows **≥ 560.76**
+  (Linux **≥ 560.28.03**), zgodnie z tabelą CUDA 12.6 GA w
+  [dokumentacji NVIDIA](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-toolkit-release-notes/index.html#cuda-driver).
+  To wymaganie projektu oparte na wersji sterownika dla pełnego toolkitu; tabela zgodności minor CUDA 12.x
+  podaje niższe minimum, z dodatkowymi ograniczeniami. Lokalny CUDA Toolkit nie jest potrzebny do instalacji wheels.
+- Indeks zawiera wheels `cp311-win_amd64` i `cp312-win_amd64` (D-005). Potwierdzenie działania na RTX 2060
+  wymaga uruchomienia na laptopie: `nvidia-smi` oraz
+  `uv run python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"`.
+  Wynik z laptopa dołączamy do PR; sprawdzenie dostępności wheels nie zastępuje testu GPU.
 
 **MPS (M4 Pro):**
 - Tylko float32; AMP wyłączone.
@@ -86,6 +124,19 @@ Plik `.env` w katalogu repo (poza gitem; wzór w `.env.example`). Skrypty wczytu
 6. **WSL2** jest dopuszczalną alternatywą do treningu (parytet z Linuksem w CI); dane trzymaj wtedy w systemie plików WSL, nie w `/mnt/c`.
 7. **Długie ścieżki:** w razie błędów `git config --global core.longpaths true`.
 
+Weryfikacja T001 na laptopie RTX 2060 (PowerShell; po instalacji runtime z §2):
+
+```powershell
+nvidia-smi
+uv sync --locked --python 3.12 --extra cuda --extra all
+uv run pytest -q
+uv run python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available()); assert torch.cuda.is_available(); assert 'sm_75' in torch.cuda.get_arch_list()"
+```
+
+Powtórz dla `--python 3.11`. Dla wariantu CPU wybierz `--extra cpu` i uruchom `uv run pytest -q`.
+Zapisz wersję sterownika i wynik poleceń. Kontrola wheels na Macu potwierdza możliwość doboru pakietów,
+ale zaliczenie kryterium Windows/CUDA wymaga tego wykonania na Windows.
+
 ## 7. Rozwiązywanie problemów
 
 | Objaw | Przyczyna | Rozwiązanie |
@@ -97,3 +148,4 @@ Plik `.env` w katalogu repo (poza gitem; wzór w `.env.example`). Skrypty wczytu
 | Różne wyniki między maszynami | inne dane lub urządzenie | porównaj hashe z §5; wyniki finalne tylko z laptopa A |
 | Brak połączenia z MLflow | VPN, adres, logowanie | sprawdź `MLFLOW_TRACKING_URI`; tymczasowo loguj lokalnie i zsynchronizuj później |
 | `uv sync` zgłasza konflikt extras | wybrano jednocześnie `cpu` i `cuda` | wybierz jeden wariant |
+| Import `lightgbm` zgłasza brak `libomp.dylib` lub `libgomp.so.1` | brak systemowego runtime OpenMP | zainstaluj runtime z §2; ponownie uruchom testy zależności |
