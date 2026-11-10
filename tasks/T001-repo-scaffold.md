@@ -10,7 +10,7 @@ level: MVP
 gate: G1
 experiment: none
 depends_on: []
-status: todo
+status: review
 ---
 
 # T001 — Szkielet repozytorium, pyproject i narzędzia jakości
@@ -103,21 +103,32 @@ explicit = true
 
 ## Kryteria akceptacji
 
-- [ ] `uv sync --extra cpu --extra all` działa na Linuksie i macOS; na Macu `torch.backends.mps.is_available()` zwraca `True`.
+- [x] `uv sync --extra cpu --extra all` działa na Linuksie i macOS; na Macu `torch.backends.mps.is_available()` zwraca `True`.
 - [ ] `uv sync --extra cuda --extra all` działa na laptopie z RTX 2060 (Windows); `torch.cuda.is_available()` zwraca `True` (wynik wklejony do PR).
-- [ ] `uv.lock` jest w repo, a `uv sync --locked --extra cpu` przechodzi w czystym środowisku.
-- [ ] `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` i `uv run lint-imports` przechodzą.
-- [ ] `pre-commit` blokuje plik większy niż 1 MB (`check-added-large-files --maxkb=1000`).
-- [ ] `.gitignore` obejmuje: `data/`, `outputs/`, `mlruns/`, `mlartifacts/`, `mlflow.db`, `models/bundles/`, `reports/*` (z wyjątkami `!reports/final/` i `!reports/docs-audit/`),
+- [x] `uv.lock` jest w repo, a `uv sync --locked --extra cpu` przechodzi w czystym środowisku.
+- [x] `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` i `uv run lint-imports` przechodzą.
+- [x] `pre-commit` blokuje plik większy niż 1 MB (`check-added-large-files --maxkb=1000`).
+- [x] `.gitignore` obejmuje: `data/`, `outputs/`, `mlruns/`, `mlartifacts/`, `mlflow.db`, `models/bundles/`, `reports/*` (z wyjątkami `!reports/final/` i `!reports/docs-audit/`),
       `*.pt`, `*.onnx`, `*.npy`, `.env`, `CLAUDE.local.md`, `.venv/`, `node_modules/`, `web/dist/` oraz katalogi cache narzędzi.
-- [ ] `.gitattributes`: `* text=auto eol=lf` oraz `binary` dla `*.dat *.npy *.npz *.pt *.onnx *.png *.pdf *.parquet`.
-- [ ] `.env.example` zawiera wszystkie zmienne z `docs/environment.md` §4 (z wartościami domyślnymi lub pustymi).
-- [ ] Wpis D-005 w `docs/decisions.md` uzupełniony o wybrany wariant CUDA i uzasadnienie (sterownik, dostępność wheels).
+- [x] `.gitattributes`: `* text=auto eol=lf` oraz `binary` dla `*.dat *.npy *.npz *.pt *.onnx *.png *.pdf *.parquet`.
+- [x] `.env.example` zawiera wszystkie zmienne z `docs/environment.md` §4 (z wartościami domyślnymi lub pustymi).
+- [x] Wpis D-005 w `docs/decisions.md` uzupełniony o wybrany wariant CUDA i uzasadnienie (sterownik, dostępność wheels).
+
+Weryfikacja T001 (2026-11-10): instalacja macOS ARM64 i MPS (`True`) potwierdzone na Pythonie 3.11 i 3.12.
+Linux/CPU: rzeczywista instalacja, 48 testów, bramka jakości i budowa pakietu potwierdzone w kontenerach
+ARM64 i x86_64 dla obu wersji Pythona. Uzupełniono wymagany runtime OpenMP dla LightGBM.
+Windows x86_64 CPU/CUDA: potwierdzono dostępność wheels dla obu wersji Pythona; wykonanie
+na Windows z RTX 2060 pozostaje wymagane. Tylko kryterium Windows pozostaje nieodhaczone.
+Pełny wynik kontroli:
+`reports/final/T001-validation.md`.
 
 ## Testy
 
 - `tests/unit/test_smoke.py`: import `cardioai` i `__version__`; `LEADS` ma 12 unikalnych nazw; kolejność `SUPERCLASSES`;
   foldy w `SPLIT_FOLDS` są rozłączne i pokrywają 1–10; `n_samples(100) == 1000`; `split_of_fold(10) == "test"`; `split_of_fold(11)` zgłasza `ValueError`.
+- `tests/integration/test_installation.py`: importy zainstalowanych zależności, w tym ładowanie bibliotek
+  natywnych (testy `slow`), oraz dostępność wheels z lockfile dla macOS ARM64, Windows x86_64
+  i Linux x86_64/ARM64. Kontrola platform działa offline bez pobierania i budowania zależności.
 
 ## Weryfikacja
 
