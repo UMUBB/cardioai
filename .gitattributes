@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+*.dat binary
+*.npy binary
+*.npz binary
+*.pt binary
+*.onnx binary
+*.png binary
+*.pdf binary
+*.parquet binary
