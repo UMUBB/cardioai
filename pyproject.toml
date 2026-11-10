@@ -1,0 +1,227 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cardioai"
+version = "0.1.0"
+description = "Academic multilabel classification of 12-lead ECGs from PTB-XL."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "pydantic>=2",
+    "python-dotenv",
+    "pyyaml",
+    "scikit-learn",
+    "scipy",
+    "wfdb",
+]
+
+[project.optional-dependencies]
+all = ["cardioai[api,xai,onnx,lgbm,tracking]"]
+cpu = [
+    "torch>=2.6",
+]
+cuda = [
+    "torch>=2.6",
+]
+api = [
+    "fastapi",
+    "pydantic-settings",
+    "python-multipart",
+    "uvicorn[standard]",
+]
+xai = [
+    "captum",
+]
+onnx = [
+    "onnx",
+    "onnxruntime",
+]
+lgbm = [
+    "lightgbm",
+]
+tracking = [
+    "mlflow",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cardioai", "api/cardioai_api"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cuda" }]]
+required-environments = [
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "sys_platform == 'win32' and platform_machine == 'AMD64'",
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform != 'darwin'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "api"]
+include = ["*.py", "*.pyi", "*.ipynb", "**/pyproject.toml"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["wfdb.*", "scipy.*", "sklearn.*", "pyarrow.*", "captum.*", "lightgbm.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "requires_data: requires the real PTB-XL dataset in CARDIOAI_DATA_ROOT",
+  "slow: takes more than 10 seconds",
+  "gpu: requires a CUDA or MPS device",
+]
+
+[tool.importlinter]
+root_packages = ["cardioai", "cardioai_api"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Constants have no project dependencies"
+type = "forbidden"
+source_modules = ["cardioai.constants"]
+forbidden_modules = [
+  "cardioai.utils", "cardioai.config", "cardioai.tracking", "cardioai.data",
+  "cardioai.models", "cardioai.training", "cardioai.evaluation", "cardioai.reliability",
+  "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Utilities depend only on constants"
+type = "forbidden"
+source_modules = ["cardioai.utils"]
+forbidden_modules = [
+  "cardioai.config", "cardioai.tracking", "cardioai.data", "cardioai.models",
+  "cardioai.training", "cardioai.evaluation", "cardioai.reliability", "cardioai.inference",
+  "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Configuration depends only on constants and utilities"
+type = "forbidden"
+source_modules = ["cardioai.config"]
+forbidden_modules = [
+  "cardioai.tracking", "cardioai.data", "cardioai.models", "cardioai.training",
+  "cardioai.evaluation", "cardioai.reliability", "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Tracking has no pipeline dependencies except the pyfunc adapter"
+type = "forbidden"
+source_modules = ["cardioai.tracking"]
+forbidden_modules = [
+  "cardioai.data", "cardioai.models", "cardioai.training", "cardioai.evaluation",
+  "cardioai.reliability", "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+ignore_imports = ["cardioai.tracking.pyfunc -> cardioai.inference"]
+unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "Data depends only on configuration and shared utilities"
+type = "forbidden"
+source_modules = ["cardioai.data"]
+forbidden_modules = [
+  "cardioai.tracking", "cardioai.models", "cardioai.training", "cardioai.evaluation",
+  "cardioai.reliability", "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Models are independent of data and the training pipeline"
+type = "forbidden"
+source_modules = ["cardioai.models"]
+forbidden_modules = [
+  "cardioai.tracking", "cardioai.data", "cardioai.training", "cardioai.evaluation",
+  "cardioai.reliability", "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Evaluation depends only on constants and utilities"
+type = "forbidden"
+source_modules = ["cardioai.evaluation"]
+forbidden_modules = [
+  "cardioai.config", "cardioai.tracking", "cardioai.data", "cardioai.models",
+  "cardioai.training", "cardioai.reliability", "cardioai.inference", "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Training does not depend on serving or reliability"
+type = "forbidden"
+source_modules = ["cardioai.training"]
+forbidden_modules = ["cardioai.inference", "cardioai.reliability", "cardioai_api"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Reliability is independent of training and serving"
+type = "forbidden"
+source_modules = ["cardioai.reliability"]
+forbidden_modules = [
+  "cardioai.config", "cardioai.training", "cardioai.inference", "cardioai.tracking",
+  "cardioai_api",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Inference does not import training or MLflow"
+type = "forbidden"
+source_modules = ["cardioai.inference"]
+forbidden_modules = ["cardioai.training", "cardioai.tracking", "mlflow", "cardioai_api"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "API accesses only inference and constants"
+type = "forbidden"
+source_modules = ["cardioai_api"]
+forbidden_modules = [
+  "cardioai.config", "cardioai.utils", "cardioai.tracking", "cardioai.data",
+  "cardioai.models", "cardioai.training", "cardioai.evaluation", "cardioai.reliability",
+]
+allow_indirect_imports = true
+
+[dependency-groups]
+dev = [
+    "import-linter",
+    "mypy",
+    "pandas-stubs",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "types-pyyaml",
+]

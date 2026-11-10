@@ -36,7 +36,7 @@ Warunki przejścia bramek: `tasks/README.md` §5.
 
 | ID | Zadanie | Epik | Wł. | Rec. | Tydz. | Rozm. | Poziom | Bramka | Eksp. | Zależy od | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| [T001](T001-repo-scaffold.md) | Szkielet repozytorium, pyproject i narzędzia jakości | Fundamenty | C | B | 1 | M | MVP | G1 | — | — | ⬜ todo |
+| [T001](T001-repo-scaffold.md) | Szkielet repozytorium, pyproject i narzędzia jakości | Fundamenty | C | B | 1 | M | MVP | G1 | — | — | 🟦 review |
 | [T002](T002-config-system.md) | System konfiguracji (YAML + Pydantic, extends, --set, config_hash) | Fundamenty | B | C | 1 | M | MVP | G1 | — | T001 | ⬜ todo |
 | [T003](T003-device-seed-env.md) | Device, seed, AMP, git i informacje o środowisku | Fundamenty | B | A | 1 | S | MVP | G1 | — | T001 | ⬜ todo |
 | [T004](T004-mlflow-tracking.md) | MLflow — serwer zespołowy i warstwa trackingu | Fundamenty | C | B | 1 | M | MVP | G1 | — | T002, T003 | ⬜ todo |
@@ -304,5 +304,6 @@ flowchart LR
   classDef review fill:#dbeafe,stroke:#2563eb;
   classDef blocked fill:#fee2e2,stroke:#dc2626;
   classDef extended stroke-dasharray: 4 3;
+  class T001 review;
   class T401,T402,T403,T404,T703 extended;
 ```
