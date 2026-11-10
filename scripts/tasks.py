@@ -2,7 +2,7 @@
 """Task-card tooling for the CardioAI repository (stdlib only).
 
 Commands:
-    check                    validate task cards, dependencies and cross-references in Markdown files
+    check                    validate task cards, dependencies and Markdown cross-references
     backlog                  regenerate tasks/BACKLOG.md from task front matter
     next [--owner A]         list `todo` tasks whose dependencies are all `done`
     show T103                show a task, its dependencies and dependents
@@ -18,9 +18,9 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_DIR = ROOT / "tasks"
@@ -28,10 +28,30 @@ BACKLOG_PATH = TASKS_DIR / "BACKLOG.md"
 TASK_FILE_RE = re.compile(r"^(T\d{3})-[a-z0-9-]+\.md$")
 
 REQUIRED_KEYS = (
-    "id", "title", "epic", "owner", "reviewer", "week", "size",
-    "level", "gate", "experiment", "depends_on", "status",
+    "id",
+    "title",
+    "epic",
+    "owner",
+    "reviewer",
+    "week",
+    "size",
+    "level",
+    "gate",
+    "experiment",
+    "depends_on",
+    "status",
 )
-EPICS = ("foundation", "data", "training", "quality", "extended", "reliability", "product", "deploy", "final")
+EPICS = (
+    "foundation",
+    "data",
+    "training",
+    "quality",
+    "extended",
+    "reliability",
+    "product",
+    "deploy",
+    "final",
+)
 EPIC_LABELS = {
     "foundation": "Fundamenty",
     "data": "Dane",
@@ -49,8 +69,21 @@ LEVELS = ("MVP", "Core", "Extended")
 GATES = ("G1", "G2", "G3", "G4", "G5", "G6", "none")
 EXPERIMENTS = tuple(f"E{i:02d}" for i in range(12)) + ("none",)
 STATUSES = ("todo", "in_progress", "review", "done", "blocked", "dropped")
-STATUS_ICONS = {"todo": "⬜", "in_progress": "🟨", "review": "🟦", "done": "✅", "blocked": "⛔", "dropped": "➖"}
-REQUIRED_SECTIONS = ("## Kontekst", "## Cel", "## Zakres", "## Kryteria akceptacji", "## Weryfikacja")
+STATUS_ICONS = {
+    "todo": "⬜",
+    "in_progress": "🟨",
+    "review": "🟦",
+    "done": "✅",
+    "blocked": "⛔",
+    "dropped": "➖",
+}
+REQUIRED_SECTIONS = (
+    "## Kontekst",
+    "## Cel",
+    "## Zakres",
+    "## Kryteria akceptacji",
+    "## Weryfikacja",
+)
 WEEKS = range(1, 15)
 
 
@@ -60,9 +93,9 @@ WEEKS = range(1, 15)
 @dataclass
 class Task:
     path: Path
-    meta: Dict[str, object]
+    meta: dict[str, object]
     body: str
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def id(self) -> str:
@@ -73,7 +106,7 @@ class Task:
         return str(self.meta.get("title", ""))
 
     @property
-    def deps(self) -> List[str]:
+    def deps(self) -> list[str]:
         value = self.meta.get("depends_on", [])
         return list(value) if isinstance(value, list) else []
 
@@ -94,7 +127,11 @@ def _parse_scalar(raw: str) -> object:
     value = raw.strip()
     if value.startswith("[") and value.endswith("]"):
         inner = value[1:-1].strip()
-        return [item.strip().strip("'\"") for item in inner.split(",") if item.strip()] if inner else []
+        return (
+            [item.strip().strip("'\"") for item in inner.split(",") if item.strip()]
+            if inner
+            else []
+        )
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
         return value[1:-1]
     if re.fullmatch(r"-?\d+", value):
@@ -102,9 +139,9 @@ def _parse_scalar(raw: str) -> object:
     return value
 
 
-def parse_front_matter(text: str) -> Tuple[Dict[str, object], str, List[str]]:
+def parse_front_matter(text: str) -> tuple[dict[str, object], str, list[str]]:
     """Parse the simple YAML subset used in task cards: `key: scalar` and `key: [a, b]`."""
-    errors: List[str] = []
+    errors: list[str] = []
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, text, ["missing front matter (first line must be ---)"]
@@ -112,7 +149,7 @@ def parse_front_matter(text: str) -> Tuple[Dict[str, object], str, List[str]]:
         end = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
     except StopIteration:
         return {}, text, ["unterminated front matter"]
-    meta: Dict[str, object] = {}
+    meta: dict[str, object] = {}
     for number, line in enumerate(lines[1:end], start=2):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
@@ -123,12 +160,12 @@ def parse_front_matter(text: str) -> Tuple[Dict[str, object], str, List[str]]:
         if " #" in raw and not raw.strip().startswith(("'", '"')):
             raw = raw.split(" #", 1)[0]
         meta[key.strip()] = _parse_scalar(raw)
-    body = "\n".join(lines[end + 1:])
+    body = "\n".join(lines[end + 1 :])
     return meta, body, errors
 
 
-def load_tasks() -> List[Task]:
-    tasks: List[Task] = []
+def load_tasks() -> list[Task]:
+    tasks: list[Task] = []
     for path in sorted(TASKS_DIR.glob("T*.md")):
         if not TASK_FILE_RE.match(path.name):
             continue
@@ -137,17 +174,17 @@ def load_tasks() -> List[Task]:
     return tasks
 
 
-def task_map(tasks: Sequence[Task]) -> Dict[str, Task]:
+def task_map(tasks: Sequence[Task]) -> dict[str, Task]:
     return {t.id: t for t in tasks}
 
 
 # --------------------------------------------------------------------------- validation
 
 
-def validate_tasks(tasks: Sequence[Task]) -> Tuple[List[str], List[str]]:
-    errors: List[str] = []
-    warnings: List[str] = []
-    seen: Dict[str, Path] = {}
+def validate_tasks(tasks: Sequence[Task]) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    seen: dict[str, Path] = {}
     for t in tasks:
         where = t.rel()
         errors.extend(f"{where}: {e}" for e in t.errors)
@@ -162,8 +199,14 @@ def validate_tasks(tasks: Sequence[Task]) -> Tuple[List[str], List[str]]:
             errors.append(f"{where}: duplicate id {t.id} (also in {seen[t.id].name})")
         seen[t.id] = t.path
         checks = (
-            ("epic", EPICS), ("owner", OWNERS), ("reviewer", OWNERS), ("size", tuple(SIZES)),
-            ("level", LEVELS), ("gate", GATES), ("experiment", EXPERIMENTS), ("status", STATUSES),
+            ("epic", EPICS),
+            ("owner", OWNERS),
+            ("reviewer", OWNERS),
+            ("size", tuple(SIZES)),
+            ("level", LEVELS),
+            ("gate", GATES),
+            ("experiment", EXPERIMENTS),
+            ("status", STATUSES),
         )
         for key, allowed in checks:
             if t.meta[key] not in allowed:
@@ -191,9 +234,13 @@ def validate_tasks(tasks: Sequence[Task]) -> Tuple[List[str], List[str]]:
             else:
                 d = by_id[dep]
                 if d.week > t.week:
-                    warnings.append(f"{t.id} (week {t.week}) depends on {dep} planned later (week {d.week})")
+                    warnings.append(
+                        f"{t.id} (week {t.week}) depends on {dep} planned later (week {d.week})"
+                    )
                 if t.meta.get("level") in ("MVP", "Core") and d.meta.get("level") == "Extended":
-                    warnings.append(f"{t.id} ({t.meta.get('level')}) depends on Extended task {dep}")
+                    warnings.append(
+                        f"{t.id} ({t.meta.get('level')}) depends on Extended task {dep}"
+                    )
                 if t.status == "done" and d.status != "done":
                     warnings.append(f"{t.id} is done but dependency {dep} is {d.status}")
     cycle = find_cycle(tasks)
@@ -202,19 +249,19 @@ def validate_tasks(tasks: Sequence[Task]) -> Tuple[List[str], List[str]]:
     return errors, warnings
 
 
-def find_cycle(tasks: Sequence[Task]) -> Optional[List[str]]:
+def find_cycle(tasks: Sequence[Task]) -> list[str] | None:
     by_id = task_map(tasks)
-    state: Dict[str, int] = {}
-    stack: List[str] = []
+    state: dict[str, int] = {}
+    stack: list[str] = []
 
-    def visit(node: str) -> Optional[List[str]]:
+    def visit(node: str) -> list[str] | None:
         state[node] = 1
         stack.append(node)
         for dep in by_id[node].deps:
             if dep not in by_id:
                 continue
             if state.get(dep) == 1:
-                return stack[stack.index(dep):] + [dep]
+                return stack[stack.index(dep) :] + [dep]
             if state.get(dep, 0) == 0:
                 found = visit(dep)
                 if found:
@@ -239,7 +286,7 @@ EXPERIMENT_REF_RE = re.compile(r"\bE(\d{2})\b")
 HYPOTHESIS_REF_RE = re.compile(r"\bH(\d)\b")
 
 
-def markdown_files() -> List[Path]:
+def markdown_files() -> list[Path]:
     files = [ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "GEMINI.md"]
     files += sorted((ROOT / "docs").glob("*.md"))
     files += sorted(TASKS_DIR.glob("*.md"))
@@ -253,26 +300,30 @@ def numbered_sections(path: Path) -> set:
     return {int(m.group(1)) for m in re.finditer(r"^##\s+(\d+)\.", text, flags=re.M)}
 
 
-def validate_references(tasks: Sequence[Task]) -> List[str]:
-    errors: List[str] = []
+def validate_references(tasks: Sequence[Task]) -> list[str]:
+    errors: list[str] = []
     task_ids = {t.id for t in tasks}
     decisions_file = ROOT / "docs" / "decisions.md"
     decisions = set()
     if decisions_file.exists():
-        decisions = set(re.findall(r"^## D-(\d{3})\b", decisions_file.read_text(encoding="utf-8"), flags=re.M))
-    section_cache: Dict[Path, set] = {}
+        decisions = set(
+            re.findall(r"^## D-(\d{3})\b", decisions_file.read_text(encoding="utf-8"), flags=re.M)
+        )
+    section_cache: dict[Path, set] = {}
     for md in markdown_files():
         rel = md.relative_to(ROOT).as_posix()
         if md.name in ("TEMPLATE.md", "BACKLOG.md"):
             continue
         for lineno, line in enumerate(md.read_text(encoding="utf-8").splitlines(), start=1):
-            tokens: List[Tuple[int, str, object]] = []
+            tokens: list[tuple[int, str, object]] = []
             for m in PATH_RE.finditer(line):
                 tokens.append((m.start(), "path", m.group(1)))
             for m in SECTION_RE.finditer(line):
-                tokens.append((m.start(), "sec", (int(m.group(1)), int(m.group(2)) if m.group(2) else None)))
+                tokens.append(
+                    (m.start(), "sec", (int(m.group(1)), int(m.group(2)) if m.group(2) else None))
+                )
             tokens.sort(key=lambda item: item[0])
-            current: Optional[Path] = None
+            current: Path | None = None
             for _, kind, value in tokens:
                 if kind == "path":
                     target = ROOT / str(value)
@@ -294,7 +345,12 @@ def validate_references(tasks: Sequence[Task]) -> List[str]:
                             target_rel = current.relative_to(ROOT).as_posix()
                             errors.append(f"{rel}:{lineno}: {target_rel} has no section §{number}")
             for m in DECISION_RE.finditer(line):
-                if decisions and m.group(1) not in decisions and "0xx" not in line and "0yy" not in line:
+                if (
+                    decisions
+                    and m.group(1) not in decisions
+                    and "0xx" not in line
+                    and "0yy" not in line
+                ):
                     errors.append(f"{rel}:{lineno}: unknown decision D-{m.group(1)}")
             for m in TASK_REF_RE.finditer(line):
                 ref = f"T{m.group(1)}"
@@ -312,12 +368,14 @@ def validate_references(tasks: Sequence[Task]) -> List[str]:
 # --------------------------------------------------------------------------- planning
 
 
-def critical_path(tasks: Sequence[Task], levels: Sequence[str] = ("MVP", "Core")) -> Tuple[float, List[str]]:
+def critical_path(
+    tasks: Sequence[Task], levels: Sequence[str] = ("MVP", "Core")
+) -> tuple[float, list[str]]:
     """Longest path (sum of planned person-days) through tasks of the given levels."""
     by_id = {t.id: t for t in tasks if t.meta.get("level") in levels}
-    best: Dict[str, Tuple[float, List[str]]] = {}
+    best: dict[str, tuple[float, list[str]]] = {}
 
-    def longest(tid: str) -> Tuple[float, List[str]]:
+    def longest(tid: str) -> tuple[float, list[str]]:
         if tid in best:
             return best[tid]
         task = by_id[tid]
@@ -358,17 +416,26 @@ def mermaid_graph(tasks: Sequence[Task]) -> str:
         ids = [t.id for t in tasks if t.status == status]
         if ids:
             lines.append(f"  class {','.join(ids)} {status};")
-    ext = [t.id for t in tasks if t.meta.get("level") == "Extended" and t.status not in ("done", "in_progress", "review", "blocked")]
+    ext = [
+        t.id
+        for t in tasks
+        if t.meta.get("level") == "Extended"
+        and t.status not in ("done", "in_progress", "review", "blocked")
+    ]
     if ext:
         lines.append(f"  class {','.join(ext)} extended;")
     return "\n".join(lines)
 
 
 def render_backlog(tasks: Sequence[Task]) -> str:
-    out: List[str] = []
+    out: list[str] = []
     out.append("# Backlog CardioAI")
     out.append("")
-    out.append("> Plik generowany przez `python scripts/tasks.py backlog` z front matter kart `tasks/T###-*.md`. Nie edytuj ręcznie —")
+    out.append(
+        "> Plik generowany przez `python scripts/tasks.py "
+        "backlog` z front matter kart `tasks/T###-*.md`. "
+        "Nie edytuj ręcznie —"
+    )
     out.append("> zmień kartę i wygeneruj ponownie. Opis procesu: `tasks/README.md`.")
     out.append("")
 
@@ -376,14 +443,19 @@ def render_backlog(tasks: Sequence[Task]) -> str:
     done = sum(1 for t in tasks if t.status == "done")
     out.append("## Podsumowanie")
     out.append("")
-    out.append(f"Zadań: **{total}**, ukończonych: **{done}** ({(100 * done / total) if total else 0:.0f}%).")
+    out.append(
+        f"Zadań: **{total}**, ukończonych: **{done}** "
+        f"({(100 * done / total) if total else 0:.0f}%)."
+    )
     out.append("")
     out.append("| Poziom | Zadania | Osobodni (plan) | Ukończone |")
     out.append("|---|---|---|---|")
     for level in LEVELS:
         lv = [t for t in tasks if t.meta.get("level") == level]
         days = sum(SIZES.get(str(t.meta.get("size")), 0) for t in lv)
-        out.append(f"| {level} | {len(lv)} | {days:.1f} | {sum(1 for t in lv if t.status == 'done')} |")
+        out.append(
+            f"| {level} | {len(lv)} | {days:.1f} | {sum(1 for t in lv if t.status == 'done')} |"
+        )
     out.append("")
     out.append("| Osoba | Rola | Zadania | Osobodni (plan) |")
     out.append("|---|---|---|---|")
@@ -408,24 +480,37 @@ def render_backlog(tasks: Sequence[Task]) -> str:
 
     out.append("## Wszystkie zadania")
     out.append("")
-    out.append("| ID | Zadanie | Epik | Wł. | Rec. | Tydz. | Rozm. | Poziom | Bramka | Eksp. | Zależy od | Status |")
+    out.append(
+        "| ID | Zadanie | Epik | Wł. | Rec. | Tydz. "
+        "| Rozm. | Poziom | Bramka | Eksp. | Zależy "
+        "od | Status |"
+    )
     out.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for t in sorted(tasks, key=lambda x: x.id):
         m = t.meta
         deps = ", ".join(t.deps) if t.deps else "—"
         icon = STATUS_ICONS.get(t.status, "")
         out.append(
-            f"| [{t.id}]({t.path.name}) | {t.title} | {EPIC_LABELS.get(str(m['epic']), m['epic'])} | {m['owner']} | {m['reviewer']} "
-            f"| {m['week']} | {m['size']} | {m['level']} | {m['gate'] if m['gate'] != 'none' else '—'} "
-            f"| {m['experiment'] if m['experiment'] != 'none' else '—'} | {deps} | {icon} {t.status} |"
+            f"| [{t.id}]({t.path.name}) | {t.title} | {EPIC_LABELS.get(str(m['epic']), m['epic'])} "
+            f"| {m['owner']} | {m['reviewer']} "
+            f"| {m['week']} | {m['size']} | {m['level']} "
+            f"| {m['gate'] if m['gate'] != 'none' else '—'} "
+            f"| {m['experiment'] if m['experiment'] != 'none' else '—'} "
+            f"| {deps} | {icon} {t.status} |"
         )
     out.append("")
 
     out.append("## Plan tygodniowy")
     out.append("")
-    out.append("Rozmiary: S ≈ 0,5 dnia, M ≈ 1–2 dni, L ≈ 3+ dni pracy z agentem. Zadania Extended zaznaczono kursywą.")
+    out.append(
+        "Rozmiary: S ≈ 0,5 dnia, M ≈ 1–2 dni, L ≈ "
+        "3+ dni pracy z agentem. Zadania Extended "
+        "zaznaczono kursywą."
+    )
     out.append("")
-    out.append("| Tydzień | A — Data & Signal ML | B — Model & Experiments | C — Reliability & Product |")
+    out.append(
+        "| Tydzień | A — Data & Signal ML | B — Model & Experiments | C — Reliability & Product |"
+    )
     out.append("|---|---|---|---|")
     for week in WEEKS:
         cells = []
@@ -491,7 +576,8 @@ def cmd_next(args: argparse.Namespace) -> int:
     tasks = load_tasks()
     by_id = task_map(tasks)
     ready = [
-        t for t in tasks
+        t
+        for t in tasks
         if t.status == "todo"
         and all(by_id.get(d) is not None and by_id[d].status == "done" for d in t.deps)
         and (args.owner is None or t.meta.get("owner") == args.owner)
@@ -505,7 +591,7 @@ def cmd_next(args: argparse.Namespace) -> int:
     return 0
 
 
-def find_task(tasks: Sequence[Task], tid: str) -> Optional[Task]:
+def find_task(tasks: Sequence[Task], tid: str) -> Task | None:
     tid = tid.upper()
     return next((t for t in tasks if t.id == tid), None)
 
@@ -519,7 +605,17 @@ def cmd_show(args: argparse.Namespace) -> int:
     by_id = task_map(tasks)
     print(f"{t.id} — {t.title}")
     print(f"file:     {t.rel()}")
-    for key in ("epic", "owner", "reviewer", "week", "size", "level", "gate", "experiment", "status"):
+    for key in (
+        "epic",
+        "owner",
+        "reviewer",
+        "week",
+        "size",
+        "level",
+        "gate",
+        "experiment",
+        "status",
+    ):
         print(f"{key + ':':<10}{t.meta.get(key)}")
     print("depends on:")
     if not t.deps:
@@ -550,7 +646,9 @@ def cmd_set_status(args: argparse.Namespace) -> int:
         print(f"unknown task {args.task_id}")
         return 1
     text = t.path.read_text(encoding="utf-8")
-    new_text, count = re.subn(r"^status:\s*\S+\s*$", f"status: {args.status}", text, count=1, flags=re.M)
+    new_text, count = re.subn(
+        r"^status:\s*\S+\s*$", f"status: {args.status}", text, count=1, flags=re.M
+    )
     if count != 1:
         print(f"{t.rel()}: status line not found")
         return 1
@@ -574,7 +672,9 @@ def cmd_issues(args: argparse.Namespace) -> int:
     labels = set()
     for t in tasks:
         m = t.meta
-        labels.update({f"epic:{m['epic']}", f"owner:{m['owner']}", f"size:{m['size']}", f"level:{m['level']}"})
+        labels.update(
+            {f"epic:{m['epic']}", f"owner:{m['owner']}", f"size:{m['size']}", f"level:{m['level']}"}
+        )
         if m["gate"] != "none":
             labels.add(f"gate:{m['gate']}")
     print("#!/usr/bin/env bash")
@@ -584,18 +684,30 @@ def cmd_issues(args: argparse.Namespace) -> int:
         print(f"gh label create {_quote(label)}{repo} --force")
     for t in sorted(tasks, key=lambda x: x.id):
         m = t.meta
-        flags = [f"--label {_quote(lbl)}" for lbl in (f"epic:{m['epic']}", f"owner:{m['owner']}", f"size:{m['size']}", f"level:{m['level']}")]
+        flags = [
+            f"--label {_quote(lbl)}"
+            for lbl in (
+                f"epic:{m['epic']}",
+                f"owner:{m['owner']}",
+                f"size:{m['size']}",
+                f"level:{m['level']}",
+            )
+        ]
         if m["gate"] != "none":
             flags.append(f"--label {_quote('gate:' + str(m['gate']))}")
         title = _quote(f"[{t.id}] {t.title}")
-        print(f"gh issue create{repo} --title {title} --body-file {_quote(t.rel())} {' '.join(flags)}")
+        print(
+            f"gh issue create{repo} --title {title} --body-file {_quote(t.rel())} {' '.join(flags)}"
+        )
     return 0
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("backlog").set_defaults(func=cmd_backlog)

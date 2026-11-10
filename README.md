@@ -76,6 +76,23 @@ uv sync --extra cpu --extra all        # Mac (MPS), CPU, CI
 uv sync --extra cuda --extra all       # laptop z RTX 2060 (Windows)
 ```
 
+Wybierz jeden wariant PyTorch: `cpu` i `cuda` wykluczają się. Na macOS extra `cpu` instaluje
+wydanie PyPI z obsługą MPS; na Linuksie i Windows pobiera wheels z indeksu CPU. Extra `cuda`
+korzysta z CUDA 12.6 (`cu126`); wymagania sterownika opisuje [`docs/environment.md`](docs/environment.md) §3.
+Extra `all` obejmuje `api`, `xai`, `onnx`, `lgbm` i `tracking`, a sam `uv sync` instaluje bazę
+i narzędzia developerskie bez PyTorch. Do odtworzenia środowiska użyj `uv sync --locked --extra cpu`.
+
+```bash
+uv run python -c "import cardioai, cardioai_api; print(cardioai.__version__)"
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+Skopiuj `.env.example` do `.env`, jeśli potrzebujesz lokalnych ustawień. Obecna implementacja
+T001 zawiera instalowalne pakiety, stałe domenowe, logowanie i narzędzia jakości. Poniższe
+polecenia obsługi danych, treningu, API i UI opisują docelowy system i są wdrażane w kolejnych kartach;
+`scripts/env_check.py` powstaje w T003.
+
 ```bash
 uv run python scripts/env_check.py     # sprawdzenie środowiska i urządzenia
 ```

@@ -38,10 +38,12 @@ Szablon nowego wpisu:
 - **Konsekwencje:** inny próg `likelihood` lub włączenie rekordów bez etykiet to osobne warianty eksperymentalne.
 
 ## D-005 — Menedżer środowiska uv i warianty PyTorch
-- **Status:** przyjęta (wariant CUDA do potwierdzenia w T001) · **Data:** 2026-10-31
+- **Status:** przyjęta · **Data:** 2026-10-31 · **Uzupełnienie T001:** 2026-11-10
 - **Kontekst:** trzy platformy (Windows + CUDA, macOS + MPS, Linux CI bez GPU) i jeden lockfile.
 - **Decyzja:** `uv` + `pyproject.toml` + `uv.lock`; Python 3.11–3.12; PyTorch przez wykluczające się extras `cpu` i `cuda` z indeksami PyTorch; extras funkcjonalne `api`, `xai`, `onnx`, `lgbm`, zbiorczo `all`.
-- **Konsekwencje:** konkretny wariant CUDA (np. 12.6 lub 12.8) wybieramy w T001 po sprawdzeniu sterowników RTX 2060 i dostępnych wheels; wpis uzupełniamy. Uzupełnione przez D-033.
+- **Wariant CUDA (T001):** wybieramy **CUDA 12.6 (`cu126`)**, z jawnym indeksem `https://download.pytorch.org/whl/cu126`. [Indeks PyTorch](https://download.pytorch.org/whl/cu126/torch/) udostępnia wheels Windows x86_64 dla Pythona 3.11 i 3.12; wspieramy wymaganą w projekcie architekturę RTX 2060 (Turing). Przyjmujemy sterownik Windows ≥ 560.76 / Linux ≥ 560.28.03 według tabeli CUDA 12.6 GA w [dokumentacji NVIDIA](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-toolkit-release-notes/index.html#cuda-driver), bez polegania na ograniczonej zgodności minor. Wariant 12.6 pozwala pozostać w rodzinie CUDA 12 i ma gotowe wheels dla obu wspieranych wersji Pythona. Wersja sterownika rzeczywistego laptopa i dostępność GPU pozostają do potwierdzenia przez właściciela na Windows; nie były mierzone na Macu.
+- **Konfiguracja (T001):** zgodnie z [przewodnikiem uv](https://docs.astral.sh/uv/guides/integration/pytorch/) indeksy są `explicit = true`, a `cpu` i `cuda` wykluczają się. Na macOS oba źródła mają wyłączający marker `sys_platform != 'darwin'`, więc PyTorch pochodzi z PyPI z obsługą MPS; zalecanym extra na Macu jest `cpu`. `all` łączy extras funkcjonalne przez zależność `cardioai[api,xai,onnx,lgbm,tracking]`, bez wyboru akceleratora.
+- **Konsekwencje:** jeden wygenerowany `uv.lock` dla wszystkich platform; test instalacji i wykonania na Windows/RTX 2060 jest nadal wymagany w PR. PyTorch (> 50 MB) i frameworki API/tracking są przewidziane zakresem T001 i zamykane w extras. Uzupełnione przez D-033.
 
 ## D-006 — Config: YAML + Pydantic, bez Hydry
 - **Status:** przyjęta · **Data:** 2026-10-31

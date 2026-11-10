@@ -10,7 +10,7 @@ level: MVP
 gate: G1
 experiment: none
 depends_on: []
-status: todo
+status: review
 ---
 
 # T001 — Szkielet repozytorium, pyproject i narzędzia jakości
@@ -105,14 +105,20 @@ explicit = true
 
 - [ ] `uv sync --extra cpu --extra all` działa na Linuksie i macOS; na Macu `torch.backends.mps.is_available()` zwraca `True`.
 - [ ] `uv sync --extra cuda --extra all` działa na laptopie z RTX 2060 (Windows); `torch.cuda.is_available()` zwraca `True` (wynik wklejony do PR).
-- [ ] `uv.lock` jest w repo, a `uv sync --locked --extra cpu` przechodzi w czystym środowisku.
-- [ ] `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` i `uv run lint-imports` przechodzą.
-- [ ] `pre-commit` blokuje plik większy niż 1 MB (`check-added-large-files --maxkb=1000`).
-- [ ] `.gitignore` obejmuje: `data/`, `outputs/`, `mlruns/`, `mlartifacts/`, `mlflow.db`, `models/bundles/`, `reports/*` (z wyjątkami `!reports/final/` i `!reports/docs-audit/`),
+- [x] `uv.lock` jest w repo, a `uv sync --locked --extra cpu` przechodzi w czystym środowisku.
+- [x] `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` i `uv run lint-imports` przechodzą.
+- [x] `pre-commit` blokuje plik większy niż 1 MB (`check-added-large-files --maxkb=1000`).
+- [x] `.gitignore` obejmuje: `data/`, `outputs/`, `mlruns/`, `mlartifacts/`, `mlflow.db`, `models/bundles/`, `reports/*` (z wyjątkami `!reports/final/` i `!reports/docs-audit/`),
       `*.pt`, `*.onnx`, `*.npy`, `.env`, `CLAUDE.local.md`, `.venv/`, `node_modules/`, `web/dist/` oraz katalogi cache narzędzi.
-- [ ] `.gitattributes`: `* text=auto eol=lf` oraz `binary` dla `*.dat *.npy *.npz *.pt *.onnx *.png *.pdf *.parquet`.
-- [ ] `.env.example` zawiera wszystkie zmienne z `docs/environment.md` §4 (z wartościami domyślnymi lub pustymi).
-- [ ] Wpis D-005 w `docs/decisions.md` uzupełniony o wybrany wariant CUDA i uzasadnienie (sterownik, dostępność wheels).
+- [x] `.gitattributes`: `* text=auto eol=lf` oraz `binary` dla `*.dat *.npy *.npz *.pt *.onnx *.png *.pdf *.parquet`.
+- [x] `.env.example` zawiera wszystkie zmienne z `docs/environment.md` §4 (z wartościami domyślnymi lub pustymi).
+- [x] Wpis D-005 w `docs/decisions.md` uzupełniony o wybrany wariant CUDA i uzasadnienie (sterownik, dostępność wheels).
+
+Weryfikacja T001 (2026-11-10): instalacja macOS/ARM64 i MPS (`True`) potwierdzone.
+Linux/CPU i Windows/CUDA: potwierdzony dobór zależności przez `uv sync --locked --dry-run`
+dla platform docelowych; rzeczywiste uruchomienia pozostają do wykonania na tych systemach.
+Pierwsze dwa kryteria pozostają nieodhaczone do czasu tych testów. Pełny wynik kontroli
+oraz opis PR: `reports/final/T001-validation.md`.
 
 ## Testy
 

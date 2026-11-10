@@ -36,6 +36,15 @@ Nie trenujemy rozproszenie między maszynami — każda prowadzi własne ekspery
 - Startowo ResNet1D przy 100 Hz: `batch_size: 128` z AMP; przy OOM zmniejsz batch i zwiększ `grad_accum_steps`.
 - Długie treningi: zasilacz podłączony, tryb wysokiej wydajności, wyłączone usypianie systemu.
 - `nvidia-smi` musi pokazywać sterownik zgodny z wybranym wariantem CUDA wheels (T001).
+- W T001 wybrano indeks **CUDA 12.6 (`cu126`)**. Przyjmujemy sterownik Windows **≥ 560.76**
+  (Linux **≥ 560.28.03**), zgodnie z tabelą CUDA 12.6 GA w
+  [dokumentacji NVIDIA](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-toolkit-release-notes/index.html#cuda-driver).
+  To wymaganie projektu oparte na wersji sterownika dla pełnego toolkitu; tabela zgodności minor CUDA 12.x
+  podaje niższe minimum, z dodatkowymi ograniczeniami. Lokalny CUDA Toolkit nie jest potrzebny do instalacji wheels.
+- Indeks zawiera wheels `cp311-win_amd64` i `cp312-win_amd64` (D-005). Potwierdzenie działania na RTX 2060
+  wymaga uruchomienia na laptopie: `nvidia-smi` oraz
+  `uv run python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"`.
+  Wynik z laptopa dołączamy do PR; sprawdzenie dostępności wheels nie zastępuje testu GPU.
 
 **MPS (M4 Pro):**
 - Tylko float32; AMP wyłączone.
