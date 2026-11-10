@@ -68,6 +68,11 @@ Granice zależności między pakietami pilnuje `import-linter` (tabela w [`AGENT
 Wymagania: [`uv`](https://docs.astral.sh/uv/), Python 3.11–3.12, Node.js LTS (frontend), Docker Desktop (demo).
 Szczegóły i pułapki Windows: [`docs/environment.md`](docs/environment.md).
 
+Cele natywnej instalacji: macOS ARM64, Windows x86_64 oraz Linux x86_64/ARM64 z glibc ≥ 2.28,
+Python 3.11–3.12. Dla `all`/LightGBM najpierw zainstaluj OpenMP: na Macu `brew install libomp`,
+na Debianie/Ubuntu `sudo apt-get install libgomp1`, na Windows runtime Visual C++ x64.
+Mac z całym extra `all` wymaga macOS ≥ 14. Pełna [instrukcja i macierz platform](docs/environment.md#2-instalacja-wszystkie-systemy).
+
 ```bash
 uv sync --extra cpu --extra all        # Mac (MPS), CPU, CI
 ```
@@ -75,6 +80,23 @@ uv sync --extra cpu --extra all        # Mac (MPS), CPU, CI
 ```bash
 uv sync --extra cuda --extra all       # laptop z RTX 2060 (Windows)
 ```
+
+Wybierz jeden wariant PyTorch: `cpu` i `cuda` wykluczają się. Na macOS extra `cpu` instaluje
+wydanie PyPI z obsługą MPS; na Linuksie i Windows pobiera wheels z indeksu CPU. Extra `cuda`
+korzysta z CUDA 12.6 (`cu126`); wymagania sterownika opisuje [`docs/environment.md`](docs/environment.md) §3.
+Extra `all` obejmuje `api`, `xai`, `onnx`, `lgbm` i `tracking`, a sam `uv sync` instaluje bazę
+i narzędzia developerskie bez PyTorch. Do odtworzenia środowiska użyj `uv sync --locked --extra cpu`.
+
+```bash
+uv run python -c "import cardioai, cardioai_api; print(cardioai.__version__)"
+uv run pre-commit install
+uv run pre-commit run --all-files
+```
+
+Skopiuj `.env.example` do `.env`, jeśli potrzebujesz lokalnych ustawień. Obecna implementacja
+T001 zawiera instalowalne pakiety, stałe domenowe, logowanie i narzędzia jakości. Poniższe
+polecenia obsługi danych, treningu, API i UI opisują docelowy system i są wdrażane w kolejnych kartach;
+`scripts/env_check.py` powstaje w T003.
 
 ```bash
 uv run python scripts/env_check.py     # sprawdzenie środowiska i urządzenia
@@ -132,6 +154,9 @@ uv run pytest -m "not requires_data and not slow and not gpu"
 
 Testy jednostkowe korzystają z syntetycznego **mini-PTB-XL** (fixture `mini_ptbxl_root`), bez sieci i bez GPU.
 Testy na prawdziwych danych: `uv run pytest -m requires_data`.
+
+W T001 `uv run pytest -q` sprawdza także importy bibliotek natywnych i dostępność wheels z lockfile
+dla docelowych platform. Testy importów są oznaczone `slow`; wykonuj je po instalacji lub zmianie zależności.
 
 ## Zasady nienaruszalne (skrót)
 
